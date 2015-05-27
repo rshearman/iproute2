@@ -1078,6 +1078,12 @@ static int iproute_modify(int cmd, unsigned flags, int argc, char **argv)
 			if (get_rt_realms(&realm, *argv))
 				invarg("\"realm\" value is invalid\n", *argv);
 			addattr32(&req.n, sizeof(req), RTA_FLOW, realm);
+		} else if (strcmp(*argv, "mpls-payload") == 0) {
+			__u32 mpt;
+			NEXT_ARG();
+			if (get_rt_mpls_payload(&mpt, *argv))
+				invarg("\"mpls-payload\" value is invalid\n", *argv);
+			addattr32(&req.n, sizeof(req), RTA_MPLS_PAYLOAD_TYPE, mpt);
 		} else if (strcmp(*argv, "onlink") == 0) {
 			req.r.rtm_flags |= RTNH_F_ONLINK;
 		} else if (strcmp(*argv, "nexthop") == 0) {

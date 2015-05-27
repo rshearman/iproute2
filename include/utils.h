@@ -85,6 +85,28 @@ struct ipx_addr {
 /* Maximum number of labels the mpls helpers support */
 #define MPLS_MAX_LABELS 8
 
+/* RTA_MPLS_PAYLOAD_TYPE - u32 specifying type and zero or more flags */
+enum rtmpls_payload_type {
+	RTMPT_IP		= 0x0000, /* IPv4 or IPv6 */
+	RTMPT_IPV4		= 0x0004,
+	RTMPT_IPV6		= 0x0006,
+
+	/* Other types not implemented:
+	 *  - Pseudo-wire with or without control word (RFC4385)
+	 *  - GAL (RFC5586)
+	 */
+};
+#ifndef RTMPT_TYPE_MASK
+#define RTMPT_TYPE_MASK		0x0000ffff
+#endif
+
+#ifndef RTMPT_FLAG_BOS_ONLY
+#define RTMPT_FLAG_BOS_ONLY	0x80000000
+#endif
+#ifndef RTMPT_ALL_FLAGS
+#define RTMPT_ALL_FLAGS		(RTMPT_FLAG_BOS_ONLY)
+#endif
+
 extern __u32 get_addr32(const char *name);
 extern int get_addr_1(inet_prefix *dst, const char *arg, int family);
 extern int get_prefix_1(inet_prefix *dst, char *arg, int family);

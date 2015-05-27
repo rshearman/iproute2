@@ -114,3 +114,34 @@ int get_rt_realms(__u32 *realms, char *arg)
 	*realms |= realm;
 	return 0;
 }
+
+int get_rt_mpls_payload(__u32 *mpt, char *arg)
+{
+	char *p = strchr(arg, ',');
+
+	*mpt = RTMPT_IP;
+        if (p) {
+            *p = 0;
+            if (!strcmp(arg, "bos-only")) {
+                *mpt |= RTMPT_FLAG_BOS_ONLY;
+            } else {
+		*p = ',';
+                return -1;
+            }
+            *p = ',';
+            arg = p+1;
+        }
+	if (!*arg)
+            return -1;
+
+        if (!strcmp(arg, "ip"))
+            *mpt |= RTMPT_IP;
+        else if (!strcmp(arg, "ipv4"))
+            *mpt |= RTMPT_IPV4;
+        else if (!strcmp(arg, "ipv6"))
+            *mpt |= RTMPT_IPV6;
+        else
+            return -1;
+
+        return 0;
+}

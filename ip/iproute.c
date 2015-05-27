@@ -24,6 +24,7 @@
 #include <arpa/inet.h>
 #include <linux/in_route.h>
 #include <linux/icmpv6.h>
+#include <linux/if_arp.h>
 #include <errno.h>
 
 #include "rt_names.h"
@@ -692,6 +693,26 @@ int print_route(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
 			fprintf(fp, "%u", pref);
 		}
 	}
+	if (tb[RTA_ENCAP] && tb[RTA_OIF]) {
+            size_t len = RTA_PAYLOAD(tb[RTA_ENCAP]);
+            char *encap = RTA_DATA(tb[RTA_ENCAP]);
+            int kind;
+            int i;
+
+            kind = ll_index_to_type(*(int*)RTA_DATA(tb[RTA_OIF]));
+            switch (kind) {
+            case ARPHRD_MPLS:
+		fprintf(fp, " encap ipmpls %s",
+			format_host(AF_MPLS, len, encap,
+				    abuf, sizeof(abuf)));
+                break;
+            default:
+                fprintf(fp, " encap unknown(%u) ", kind);
+                for (i = 0; i < len; i++)
+                    fprintf(fp, "%02x", encap[i]);
+                break;
+            }
+	}
 	fprintf(fp, "\n");
 	fflush(fp);
 	return 0;
@@ -746,6 +767,18 @@ static int parse_one_nh(struct rtmsg *r, struct rtattr *rta,
 				invarg("\"realm\" value is invalid\n", *argv);
 			rta_addattr32(rta, 4096, RTA_FLOW, realm);
 			rtnh->rtnh_len += sizeof(struct rtattr) + 4;
+		} else if (matches(*argv, "encap") == 0) {
+			inet_prefix addr;
+			NEXT_ARG();
+                        if (matches(*argv, "ipmpls") == 0) {
+                            NEXT_ARG();
+                            get_addr(&addr, *argv, AF_MPLS);
+                            rta_addattr_l(rta, 4096, RTA_ENCAP, &addr.data,
+                                          addr.bytelen);
+                            rtnh->rtnh_len += sizeof(struct rtattr) + addr.bytelen;
+                        } else {
+				invarg("\"encap\" type is invalid\n", *argv);
+                        }
 		} else
 			break;
 	}
@@ -1084,6 +1117,17 @@ static int iproute_modify(int cmd, unsigned flags, int argc, char **argv)
 			else if (get_u8(&pref, *argv, 0))
 				invarg("\"pref\" value is invalid\n", *argv);
 			addattr8(&req.n, sizeof(req), RTA_PREF, pref);
+		} else if (matches(*argv, "encap") == 0) {
+			inet_prefix addr;
+			NEXT_ARG();
+                        if (matches(*argv, "ipmpls") == 0) {
+                            NEXT_ARG();
+                            get_addr(&addr, *argv, AF_MPLS);
+                            addattr_l(&req.n, sizeof(req), RTA_ENCAP,
+                                      &addr.data, addr.bytelen);
+                        } else {
+				invarg("\"encap\" type is invalid\n", *argv);
+                        }
 		} else {
 			int type;
 			inet_prefix dst;
@@ -1494,6 +1538,8 @@ static int iproute_list_flush_or_save(int argc, char **argv, int action)
 			}
 		}
 	}
+
+        ll_init_map(&rth);
 
 	if (!filter.cloned) {
 		if (rtnl_wilddump_request(&rth, do_ipv6, RTM_GETROUTE) < 0) {
